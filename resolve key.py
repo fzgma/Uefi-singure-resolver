@@ -1,3 +1,7 @@
+#UEFI Secure Boot database resolver.
+#Parses PK/KEK/DB/DBX signature lists and exports certificate info.
+
+
 import struct
 import uuid
 from cryptography import x509
@@ -135,4 +139,3 @@ output_file = "UEFI_SecureBoot_entries.xlsx"
 wb.save(output_file)
 
 print(f"Excel 文件已生成：{output_file}")
-
