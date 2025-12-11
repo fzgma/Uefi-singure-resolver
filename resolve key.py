@@ -1,7 +1,6 @@
 #UEFI Secure Boot database resolver.
 #Parses PK/KEK/DB/DBX signature lists and exports certificate info.
 
-
 import struct
 import uuid
 from cryptography import x509
