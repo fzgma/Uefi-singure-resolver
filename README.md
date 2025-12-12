@@ -37,6 +37,10 @@ cryptography
 ```bash
 pip install -r requirements.txt
 ```
+或：
+```bash
+pip install cryptography
+```
 
 ## 文件说明
 
