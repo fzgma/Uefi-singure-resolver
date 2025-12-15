@@ -25,6 +25,8 @@ os.makedirs(save_path, exist_ok=True)
 print(f"输出目录：{save_path}")
 
 def gen_cert(subject_name):
+    """生成自签名 X.509 证书，返回 DER 格式字节。"""
+
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, subject_name),
@@ -44,6 +46,7 @@ def gen_cert(subject_name):
     return cert.public_bytes(serialization.Encoding.DER)
 
 def make_sig_list(sig_type_guid, cert_list):
+    """为指定签名类型和证书列表构建 EFI_SIGNATURE_LIST 二进制。"""
     # GUID (16 bytes) + 3x UINT32 + header + entries
     header = b""
     SignatureHeaderSize = len(header)
@@ -82,11 +85,13 @@ db_bin = make_sig_list(EFI_CERT_X509_GUID, [db_cert1, db_cert2])
 
 # Create dbx (SHA256 blacklist)
 def random_sha256():
+    """使用 os.urandom 生成随机数据并返回其 SHA256 摘要（32 字节）。"""
     return hashlib.sha256(os.urandom(64)).digest()
 
 dbx_entries = [random_sha256() for _ in range(10)]
 # SHA256: signature size = 16 + 32
 def make_dbx():
+    """构建包含 SHA256 黑名单条目的 dbx 型 EFI_SIGNATURE_LIST。"""
     header = b""
     SignatureHeaderSize = len(header)
     SignatureSize = 16 + 32
