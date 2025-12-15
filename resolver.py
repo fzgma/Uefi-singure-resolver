@@ -9,6 +9,7 @@ from cryptography.hazmat.backends import default_backend
 import csv
 
 def parse_signature_list(data):
+    """解析 EFI_SIGNATURE_LIST 二进制数据，返回每个条目的信息字典列表。"""
     offset = 0
     results = []
 
@@ -20,7 +21,7 @@ def parse_signature_list(data):
 
         SignatureType = uuid.UUID(bytes_le=data[offset:offset+16])
         SignatureListSize, SignatureHeaderSize, SignatureSize = struct.unpack(
-            "<III", data[offset+16:offset+28]
+            "<III", data[offset+16:offset+28] 
         )
 
         # 简单边界判断（部分主板可能产生损坏结构）
@@ -89,7 +90,12 @@ input_dir = input("请输入包含 PK/KEK/db/dbx 文件的目录路径（留空�
 if input_dir == "":
     input_dir = "."
 
+
 def find_file_by_prefix(directory, prefix):
+    """在目录中按前缀查找第一个匹配文件，返回文件路径或 None。
+
+    特殊处理：避免 `db` 错误匹配 `dbx`（若前缀后仍为字母数字则不视为匹配）。
+    """
     try:
         for name in os.listdir(directory):
             name_lower = name.lower()
@@ -101,48 +107,53 @@ def find_file_by_prefix(directory, prefix):
         return None
     except FileNotFoundError:
         return None
+    
 
-all_entries = []
+def main():
+    all_entries = []
 
-for store_name, prefix in default_prefixes.items():
-    filepath = find_file_by_prefix(input_dir, prefix)
-    if not filepath:
-        print(f"在目录 {input_dir} 中未找到以 '{prefix}' 开头的文件，跳过 {store_name}。")
-        continue
-    try:
-        with open(filepath, "rb") as f:
-            data = f.read()
-        entries = parse_signature_list(data)
-        for e in entries:
-            e["Store"] = store_name
-        all_entries.extend(entries)
-    except Exception as ex:
-        print(f"读取文件 {filepath} 时出错：{ex}")
+    for store_name, prefix in default_prefixes.items():
+        filepath = find_file_by_prefix(input_dir, prefix)
+        if not filepath:
+            print(f"在目录 {input_dir} 中未找到以 '{prefix}' 开头的文件，跳过 {store_name}。")
+            continue
+        try:
+            with open(filepath, "rb") as f:
+                data = f.read()
+            entries = parse_signature_list(data)
+            for e in entries:
+                e["Store"] = store_name
+            all_entries.extend(entries)
+        except Exception as ex:
+            print(f"读取文件 {filepath} 时出错：{ex}")
 
 
-# ----------- 生成 CSV -------------
-output_file = "UEFI_SecureBoot_entries.csv"
-headers = [
-    "Store", "SignatureType", "OwnerGUID", "is_x509",
-    "subject", "issuer", "serial_number",
-    "not_before", "not_after", "data_length"
-]
+    # ----------- 生成 CSV -------------
+    output_file = "UEFI_SecureBoot_entries.csv"
+    headers = [
+        "Store", "SignatureType", "OwnerGUID", "is_x509",
+        "subject", "issuer", "serial_number",
+        "not_before", "not_after", "data_length"
+    ]
 
-with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerow(headers)
-    for e in all_entries:
-        writer.writerow([
-            e.get("Store", ""),
-            e.get("SignatureType", ""),
-            e.get("OwnerGUID", ""),
-            e.get("is_x509", ""),
-            e.get("subject", ""),
-            e.get("issuer", ""),
-            e.get("serial_number", ""),
-            e.get("not_before", ""),
-            e.get("not_after", ""),
-            e.get("data_length", "")
-        ])
+    with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        for e in all_entries:
+            writer.writerow([
+                e.get("Store", ""),
+                e.get("SignatureType", ""),
+                e.get("OwnerGUID", ""),
+                e.get("is_x509", ""),
+                e.get("subject", ""),
+                e.get("issuer", ""),
+                e.get("serial_number", ""),
+                e.get("not_before", ""),
+                e.get("not_after", ""),
+                e.get("data_length", "")
+            ])
 
-print(f"CSV 文件已生成：{output_file}")
+    print(f"CSV 文件已生成：{output_file}")
+
+if __name__ == "__main__":
+    main()
