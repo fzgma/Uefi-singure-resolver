@@ -94,10 +94,9 @@ def find_file_by_prefix(directory, prefix):
         for name in os.listdir(directory):
             name_lower = name.lower()
             p = prefix.lower()
-            if name_lower.startswith(p):
-                # 确保 'db' 不会错误匹配 'dbx'：下一字符若存在且为字母数字则拒绝
-                if len(name_lower) == len(p) or not name_lower[len(p)].isalnum():
-                    return os.path.join(directory, name)
+            base_name, ext = os.path.splitext(name_lower)
+            if base_name == p and ext in ("", ".bin"):
+                return os.path.join(directory, name)
         return None
     except FileNotFoundError:
         return None

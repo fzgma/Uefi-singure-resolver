@@ -10,8 +10,6 @@ from cryptography.x509.oid import NameOID
 from cryptography import x509
 from datetime import datetime, timedelta, timezone
 
-default_save_path = "."  # 默认使用运行目录
-
 # 允许用户自定义生成路径（留空使用当前运行目录）
 input_path = input(f"请输入生成文件的保存路径（留空使用当前运行目录）：").strip()
 if input_path == "":
@@ -43,26 +41,30 @@ def gen_cert(subject_name):
     )
     return cert.public_bytes(serialization.Encoding.DER)
 
-def make_sig_list(sig_type_guid, cert_list):
+def make_sig_list(sig_type_guid, payloads):
     # GUID (16 bytes) + 3x UINT32 + header + entries
+    if not payloads:
+        raise ValueError("payloads 不能为空")
+
     header = b""
-    SignatureHeaderSize = len(header)
+    signature_header_size = len(header)
     entries = []
 
-    SignatureSize = 16 +  len(cert_list[0])  # Owner GUID + Cert
-
-    for cert in cert_list:
+    signature_size = 16 + len(payloads[0])  # Owner GUID + payload
+    for payload in payloads:
+        if len(payload) != len(payloads[0]):
+            raise ValueError("同一个 Signature List 中的条目长度必须一致")
         owner_guid = uuid.uuid4().bytes_le
-        entries.append(owner_guid + cert)
+        entries.append(owner_guid + payload)
 
-    SignatureListSize = 28 + SignatureHeaderSize + len(entries) * SignatureSize
-    
+    signature_list_size = 28 + signature_header_size + len(entries) * signature_size
+
     out = b""
     out += sig_type_guid.bytes_le
-    out += struct.pack("<III", SignatureListSize, SignatureHeaderSize, SignatureSize)
+    out += struct.pack("<III", signature_list_size, signature_header_size, signature_size)
     out += header
-    for e in entries:
-        out += e
+    for entry in entries:
+        out += entry
     return out
 
 # UEFI signature GUIDs
@@ -78,7 +80,8 @@ db_cert2 = gen_cert("UEFI CA B (Sim)")
 # Create PK, KEK, db
 PK_bin = make_sig_list(EFI_CERT_X509_GUID, [pk_cert])
 KEK_bin = make_sig_list(EFI_CERT_X509_GUID, [kek_cert])
-db_bin = make_sig_list(EFI_CERT_X509_GUID, [db_cert1, db_cert2])
+# db 里可能出现不同长度的证书，因此分别放入两个 Signature List，避免结构失真
+db_bin = make_sig_list(EFI_CERT_X509_GUID, [db_cert1]) + make_sig_list(EFI_CERT_X509_GUID, [db_cert2])
 
 # Create dbx (SHA256 blacklist)
 def random_sha256():
